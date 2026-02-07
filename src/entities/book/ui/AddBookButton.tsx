@@ -33,7 +33,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
             publishedYear: new Date(metadata.pubdate).getFullYear().toString(),
             file: files[0],
             coverImage: coverImageBlob,
-        }
+        };
 
         try {
             await createBook(createBookRequest).unwrap();

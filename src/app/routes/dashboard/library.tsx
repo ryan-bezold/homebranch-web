@@ -13,7 +13,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Library() {
     const [page, setPage] = useState(0);
-    const {result, isLoading, error} = useGetBooksQuery(page);
+    const {result} = useGetBooksQuery(page);
     return (!result || result?.total === 0) ? _noBooks() : <LibraryPage result={result} page={page} setPage={setPage} />;
 }
 

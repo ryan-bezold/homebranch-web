@@ -3,7 +3,7 @@ import type {Route} from "./+types/read-book";
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle,} from "react-reader";
 import {useMemo, useState} from "react";
 import {Box, CloseButton, useMediaQuery} from "@chakra-ui/react";
-import {Navigate, redirect, useNavigate} from "react-router";
+import {Navigate, useNavigate} from "react-router";
 import {config} from "@/shared";
 import ToastFactory from "@/app/utils/toast_handler";
 import {useGetBookByIdQuery} from "@/entities/book";
@@ -17,7 +17,7 @@ function getInitialLocation(bookId: string): string | number {
 
 export default function ReadBook({params}: Route.ComponentProps) {
     const {bookId} = params;
-    const {data: book, isLoading, error} = useGetBookByIdQuery(bookId);
+    const {data: book, error} = useGetBookByIdQuery(bookId);
 
     const navigate = useNavigate();
 
@@ -33,7 +33,11 @@ export default function ReadBook({params}: Route.ComponentProps) {
         localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
     }, [location]);
 
-    if (!book) {
+    if (isLoading) {
+        return null;
+    }
+
+    if (error || !book) {
         ToastFactory({message: "Failed to open book", type: "error"});
         return <Navigate to={"/"} />;
     }

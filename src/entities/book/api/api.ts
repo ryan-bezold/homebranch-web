@@ -27,7 +27,45 @@ export const booksApi = homebranchApi.injectEndpoints({
         }),
         deleteBook: build.mutation<BookModel, string>({
             query: (id: string) => ({url: `/books/${id}`, method: 'DELETE'}),
-            invalidatesTags: [{type: 'Book', id: 'LIST'}]
+            invalidatesTags: [{type: 'Book', id: 'LIST'}],
+            async onQueryStarted(id, {queryFulfilled}) {
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // If the delete fails, do not modify localStorage.
+                    return;
+                }
+
+                if (typeof localStorage === 'undefined') {
+                    return;
+                }
+
+                const key = 'currentlyReading';
+                const stored = localStorage.getItem(key);
+
+                if (stored === null) {
+                    return;
+                }
+
+                try {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        const updated = parsed.filter((storedId) => storedId !== id);
+                        if (updated.length === 0) {
+                            localStorage.removeItem(key);
+                        } else {
+                            localStorage.setItem(key, JSON.stringify(updated));
+                        }
+                        return;
+                    }
+                } catch {
+                    // Not JSON or not an array; fall through to string comparison.
+                }
+
+                if (stored === id) {
+                    localStorage.removeItem(key);
+                }
+            }
         }),
         createBook: build.mutation<BookModel, CreateBookRequest>({
             query: (book: CreateBookRequest) => {

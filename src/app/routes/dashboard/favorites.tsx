@@ -14,7 +14,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Favorites() {
     const [page, setPage] = useState(0);
-    const {result, isLoading, error} = useGetFavoriteBooksQuery(page);
+    const {result} = useGetFavoriteBooksQuery(page);
     return (!result || result?.total === 0) ? _noBooks() : <LibraryPage result={result} page={page} setPage={setPage} />;
 }
 
