@@ -13,12 +13,12 @@ export default defineConfig({
     },
       proxy: {
         '/api': {
-            target: 'https://homebranch-dev.hydraux-homelab.com',
+            target: process.env.BACKEND_URL,
             changeOrigin: true,
             secure: false,
         },
           '/auth': {
-            target: 'https://homebranch-dev.hydraux-homelab.com',
+            target: process.env.AUTHENTICATION_URL,
             changeOrigin: true,
             secure: false
           }
