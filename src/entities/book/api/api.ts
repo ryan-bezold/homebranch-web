@@ -28,7 +28,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) =>
-                ({url: `/books?title=${queryArg.query}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+                ({url: `/books?title=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -65,8 +65,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return nextPage;
                 }
             },
-            query: ({pageParam}) =>
-                ({url: `/books/favorite?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+            query: ({queryArg, pageParam}) =>
+                ({url: `/books/favorite?title=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -79,7 +79,7 @@ export const booksApi = homebranchApi.injectEndpoints({
         getBooksByIds: build.query<BookModel[], QueriedSearch<GetBooksByIdsRequest>>({
             async queryFn({query, bookIds}, _queryApi, _extraOptions, fetchWithBQ) {
                 const results = await Promise.all(
-                    bookIds.map(id => fetchWithBQ({url: `/books/${id}?title=${query}`}))
+                    bookIds.map(id => fetchWithBQ({url: `/books/${id}?title=${encodeURIComponent(query)}`}))
                 );
 
                 const books = results
