@@ -1,8 +1,9 @@
 // Model
 export type {UserModel} from './model/UserModel';
+export type {RoleModel} from './model/RoleModel';
 
 // API
-export type {AssignRoleRequest} from './api/dtos';
+export type {AssignRoleRequest, CreateUserRequest} from './api/dtos';
 export {
     useGetUsersInfiniteQuery,
     useGetUserByIdQuery,

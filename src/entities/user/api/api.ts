@@ -37,7 +37,7 @@ export const usersApi = homebranchApi.injectEndpoints({
                 ) ?? [{type: 'User', id: 'LIST'}, 'User']
         }),
         getUserById: build.query<UserModel, string>({
-            query: userId => ({url: `/users/${userId}}`}),
+            query: userId => ({url: `/users/${userId}`}),
             providesTags: result => result ? [{type: 'User' as const, id: result.id}] : []
         }),
         restrictUser: build.mutation<UserModel, string>({

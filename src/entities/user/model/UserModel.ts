@@ -1,6 +1,9 @@
+import type {RoleModel} from "@/entities/user";
+
 export type UserModel = {
     id: string;
-    name: string;
+    username: string;
     email: string;
-    role?: string;
+    role?: RoleModel;
+    restricted?: boolean;
 }
