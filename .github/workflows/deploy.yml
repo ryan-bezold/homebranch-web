@@ -26,11 +26,16 @@ jobs:
 
       # Version is the semver tag (e.g. 1.2.3) on tag pushes, or a dev
       # pre-release string (e.g. 0.0.0-abc1234f) on branch pushes.
+      # Tag versions are validated to be semver before proceeding.
       - name: Determine version
         id: version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "::error::Tag '$VERSION' is not a valid semver string (expected vX.Y.Z)"
+              exit 1
+            fi
           else
             VERSION="0.0.0-${GITHUB_SHA::8}"
           fi
@@ -106,6 +111,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
 
       # Dockerfile.nginx copies build/client from the context — no Node build step.
       - name: Build and push
@@ -154,15 +160,31 @@ jobs:
           cp -r build/client/. pkg/var/www/homebranch/
 
           # ── Nginx config ──────────────────────────────────────────────────
+          # This instance listens on HTTP (port 80) only. It is designed to
+          # run behind a TLS-terminating reverse proxy (e.g. Caddy, Traefik,
+          # or an upstream nginx) which handles HTTPS and forwards requests
+          # here over the internal network.
+          #
           # Default proxy targets point to localhost; edit after first install
           # to match your actual backend and auth service addresses.
           cat > pkg/etc/nginx/conf.d/homebranch.conf <<'NGINX'
+# Homebranch Web — nginx configuration
+#
+# This server listens on HTTP port 80. It is intended to run behind a
+# TLS-terminating reverse proxy that handles HTTPS. Do not expose port 80
+# directly to the internet.
 server {
     listen       80;
     server_name  _;
 
     root   /var/www/homebranch;
     index  index.html;
+
+    # Security headers
+    add_header X-Content-Type-Options  "nosniff"                       always;
+    add_header X-Frame-Options         "DENY"                          always;
+    add_header X-XSS-Protection        "1; mode=block"                 always;
+    add_header Referrer-Policy         "strict-origin-when-cross-origin" always;
 
     location / {
         try_files $uri $uri/ /index.html;
@@ -176,6 +198,7 @@ server {
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     }
 
     location /auth/ {
@@ -183,6 +206,7 @@ server {
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     }
 }
 NGINX
@@ -193,7 +217,7 @@ Package: $PKG
 Version: $VERSION
 Architecture: all
 Depends: nginx
-Maintainer: Homebranch <noreply@example.com>
+Maintainer: $GITHUB_REPOSITORY_OWNER <$GITHUB_REPOSITORY_OWNER@users.noreply.github.com>
 Description: Homebranch Web — self-hosted ebook library frontend
  React SPA served by nginx with reverse-proxy support for the
  Homebranch API and authentication service.
@@ -253,6 +277,11 @@ POSTINST
   # ─── Deploy ───────────────────────────────────────────────────────────────────
   # Installs the .deb on the Proxmox frontend container via SSH.
   # --force-confold preserves any local edits to /etc/nginx/conf.d/homebranch.conf.
+  #
+  # Required secrets (Settings → Environments → production):
+  #   SSH_PRIVATE_KEY  — private key authorised on the deploy user of the container
+  #   FRONTEND_HOST    — IP or hostname of the Proxmox frontend container
+  #   FRONTEND_USER    — SSH username (e.g. "deploy")
   deploy:
     name: Deploy to Proxmox (frontend)
     needs: deb
@@ -283,5 +312,11 @@ POSTINST
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.FRONTEND_USER }}@${{ secrets.FRONTEND_HOST }} \
-            "sudo dpkg -i --force-confold /tmp/homebranch-web.deb \
-               && rm /tmp/homebranch-web.deb"
+            "sudo dpkg -i --force-confold /tmp/homebranch-web.deb; \
+               status=\$?; \
+               rm -f /tmp/homebranch-web.deb; \
+               exit \$status"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
